@@ -1,6 +1,7 @@
 const { successResponse, errorResponse } = require("../../utils/response");
-const { Transaction, Sequelize } = require("../../models/index");
+const { Transaction, Sequelize, Storage } = require("../../models/index");
 const { Op } = require("sequelize");
+const { generateContent } = require("../../utils/generateContent");
 
 module.exports = {
   profile: (req, res) => {
@@ -117,6 +118,49 @@ module.exports = {
       return successResponse(res, 200, topServer);
     } catch (error) {
       return errorResponse(res, 500, error.message);
+    }
+  },
+  uploadImage: async (req, res) => {
+    try {
+      const { url } = req.body;
+
+      if (!url) {
+        return errorResponse(res, 400, "URL của hình ảnh là bắt buộc.");
+      }
+
+      await Storage.create({
+        url_image: url,
+      });
+
+      const result = await generateContent({ imageUrl: url });
+
+      console.log("Image URL saved:", result);
+      const bank = result?.bank;
+      const money = result?.money;
+      const desc = result?.desc;
+
+      const transactions = await Transaction.findAll({
+        where: {
+          [Op.and]: [
+            { description: { [Op.iLike]: `%${desc}%` } }, // Tìm các bản ghi có chứa một phần hoặc toàn bộ 'desc'
+            { money: { [Op.eq]: money } }, // Tìm các bản ghi có số tiền khớp chính xác
+            { bank: { [Op.iLike]: `%${bank}%` } }, // Tìm các bản ghi có chứa một phần hoặc toàn bộ 'bank'
+          ],
+        },
+        attributes: ["money", "bank", "description"],
+      });
+
+      console.log("Transactions found:", transactions);
+
+      return successResponse(
+        res,
+        200,
+        "Lưu hình ảnh thành công.",
+        transactions
+      );
+    } catch (error) {
+      console.error("Error saving image URL:", error);
+      return errorResponse(res, 500, "Đã xảy ra lỗi khi lưu hình ảnh.");
     }
   },
 };

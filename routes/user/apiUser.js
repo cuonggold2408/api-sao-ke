@@ -8,4 +8,6 @@ router.get("/top-server", userController.topServer);
 
 router.get("/search", userController.searchData);
 
+router.post("/upload-image", userController.uploadImage);
+
 module.exports = router;
